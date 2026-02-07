@@ -27,6 +27,7 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// Basic types for DB storage
 type Pet struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
@@ -54,6 +55,120 @@ type Movie struct {
 	Genre    string  `json:"Genre"`
 	Rating   float64 `json:"Rating"`
 	Director string  `json:"Director"`
+}
+
+// Enhanced nested types for API responses
+type PetOwner struct {
+	Name    string `json:"name"`
+	Email   string `json:"email"`
+	Phone   string `json:"phone"`
+	Address string `json:"address"`
+}
+
+type MedicalRecord struct {
+	Date         string `json:"date"`
+	Condition    string `json:"condition"`
+	Treatment    string `json:"treatment"`
+	Veterinarian string `json:"veterinarian"`
+}
+
+type EnhancedPet struct {
+	ID      string          `json:"id"`
+	Name    string          `json:"name"`
+	Breed   string          `json:"breed"`
+	Age     int             `json:"age"`
+	Weight  float64         `json:"weight_kg"`
+	Color   string          `json:"color"`
+	Owner   PetOwner        `json:"owner"`
+	Medical []MedicalRecord `json:"medical_records"`
+	Tags    []string        `json:"tags"`
+}
+
+type Discovery struct {
+	Year     int    `json:"year"`
+	Location string `json:"location"`
+	By       string `json:"discovered_by"`
+}
+
+type EnhancedDinosaur struct {
+	ID          string   `json:"id"`
+	Name        string   `json:"name"`
+	Species     string   `json:"species"`
+	Period      string   `json:"period"`
+	Diet        string   `json:"diet"`
+	Length      float64  `json:"length_meters"`
+	Weight      float64  `json:"weight_tons"`
+	Habitat     string   `json:"habitat"`
+	Discovered  Discovery `json:"discovery"`
+	Features    []string `json:"features"`
+	DangerLevel int      `json:"danger_level"`
+}
+
+type Engine struct {
+	Type         string  `json:"type"`
+	Displacement float64 `json:"displacement_liters"`
+	Horsepower   int     `json:"horsepower"`
+	FuelType     string  `json:"fuel_type"`
+}
+
+type CarOwner struct {
+	Name      string `json:"name"`
+	LicenseNo string `json:"license_number"`
+}
+
+type MaintenanceRecord struct {
+	Date        string  `json:"date"`
+	Type        string  `json:"type"`
+	Description string  `json:"description"`
+	Cost        float64 `json:"cost_usd"`
+}
+
+type EnhancedCar struct {
+	ID          string              `json:"id"`
+	Make        string              `json:"make"`
+	Model       string              `json:"model"`
+	Year        int                 `json:"year"`
+	Color       string              `json:"color"`
+	Mileage     int                 `json:"mileage_km"`
+	Price       float64             `json:"price_usd"`
+	Engine      Engine              `json:"engine"`
+	Features    []string            `json:"features"`
+	Owner       CarOwner            `json:"owner"`
+	Maintenance []MaintenanceRecord `json:"maintenance_history"`
+}
+
+type CareInstructions struct {
+	WateringFrequency string `json:"watering_frequency"`
+	SunlightNeeds     string `json:"sunlight_needs"`
+	SoilType          string `json:"soil_type"`
+	Temperature       string `json:"temperature_range"`
+	Humidity          string `json:"humidity_level"`
+}
+
+type GrowthInfo struct {
+	MaxHeight      float64 `json:"max_height_cm"`
+	GrowthRate     string  `json:"growth_rate"`
+	Lifespan       string  `json:"lifespan"`
+	BloomingSeason string  `json:"blooming_season"`
+}
+
+type ToxicityInfo struct {
+	ToPets   bool   `json:"toxic_to_pets"`
+	ToHumans bool   `json:"toxic_to_humans"`
+	Symptoms string `json:"symptoms_if_ingested"`
+}
+
+type EnhancedPlant struct {
+	ID             string           `json:"id"`
+	CommonName     string           `json:"common_name"`
+	ScientificName string           `json:"scientific_name"`
+	Family         string           `json:"family"`
+	Origin         string           `json:"origin"`
+	Type           string           `json:"type"`
+	Care           CareInstructions `json:"care_instructions"`
+	Growth         GrowthInfo       `json:"growth_info"`
+	Uses           []string         `json:"uses"`
+	Toxicity       ToxicityInfo     `json:"toxicity"`
 }
 
 type Server struct {
@@ -253,7 +368,12 @@ func (s *Server) handlePets(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		respondJSON(w, http.StatusOK, pets)
+		// Enrich with nested data
+		enriched := make([]EnhancedPet, len(pets))
+		for i, p := range pets {
+			enriched[i] = enrichPet(p)
+		}
+		respondJSON(w, http.StatusOK, enriched)
 	case http.MethodPost:
 		var input struct {
 			Name string `json:"name"`
@@ -267,7 +387,7 @@ func (s *Server) handlePets(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		respondJSON(w, http.StatusCreated, pet)
+		respondJSON(w, http.StatusCreated, enrichPet(pet))
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -296,7 +416,7 @@ func (s *Server) handlePet(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		respondJSON(w, http.StatusOK, pet)
+		respondJSON(w, http.StatusOK, enrichPet(pet))
 	case http.MethodPut:
 		var input struct {
 			Name string `json:"name"`
@@ -314,7 +434,7 @@ func (s *Server) handlePet(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		respondJSON(w, http.StatusOK, pet)
+		respondJSON(w, http.StatusOK, enrichPet(pet))
 	case http.MethodDelete:
 		if err := s.store.DeletePet(r.Context(), id); err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
@@ -347,7 +467,12 @@ func (s *Server) handleDinosaurs(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		respondJSON(w, http.StatusOK, dinos)
+		// Enrich with nested data
+		enriched := make([]EnhancedDinosaur, len(dinos))
+		for i, d := range dinos {
+			enriched[i] = enrichDinosaur(d)
+		}
+		respondJSON(w, http.StatusOK, enriched)
 	case http.MethodPost:
 		var input struct {
 			Name string `json:"name"`
@@ -361,7 +486,7 @@ func (s *Server) handleDinosaurs(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		respondJSON(w, http.StatusCreated, dino)
+		respondJSON(w, http.StatusCreated, enrichDinosaur(dino))
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}
@@ -394,7 +519,7 @@ func (s *Server) handleDinosaur(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		respondJSON(w, http.StatusOK, dino)
+		respondJSON(w, http.StatusOK, enrichDinosaur(dino))
 	case http.MethodPut:
 		var input struct {
 			Name string `json:"name"`
@@ -412,7 +537,7 @@ func (s *Server) handleDinosaur(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "db error", http.StatusInternalServerError)
 			return
 		}
-		respondJSON(w, http.StatusOK, dino)
+		respondJSON(w, http.StatusOK, enrichDinosaur(dino))
 	case http.MethodDelete:
 		if err := s.store.DeleteDinosaur(r.Context(), id); err == sql.ErrNoRows {
 			w.WriteHeader(http.StatusNotFound)
@@ -1076,16 +1201,37 @@ func NewStore() (*Store, error) {
 	if err := seedMovies(ctx, db); err != nil {
 		return nil, err
 	}
-	if err := seedTable(ctx, db, "pets", []string{"pet-1", "pet-2", "pet-3"}); err != nil {
+	if err := seedTable(ctx, db, "pets", []string{
+		"Max (Golden Retriever)", "Whiskers (Siamese Cat)", "Rocky (German Shepherd)",
+		"Bella (Labrador)", "Luna (Persian Cat)", "Charlie (Beagle)",
+		"Daisy (Poodle)", "Cooper (Husky)", "Milo (Tabby Cat)", "Bailey (Bulldog)",
+		"Oliver (Maine Coon)", "Sadie (Corgi)", "Tucker (Boxer)", "Chloe (Ragdoll)",
+		"Duke (Rottweiler)",
+	}); err != nil {
 		return nil, err
 	}
-	if err := seedTable(ctx, db, "plants", []string{"fern", "cactus"}); err != nil {
+	if err := seedTable(ctx, db, "plants", []string{
+		"Monstera Deliciosa", "Snake Plant", "Fiddle Leaf Fig", "Pothos",
+		"Aloe Vera", "Spider Plant", "Peace Lily", "Rubber Plant",
+		"ZZ Plant", "Philodendron", "Jade Plant", "String of Pearls",
+		"Bird of Paradise", "Calathea", "Fern",
+	}); err != nil {
 		return nil, err
 	}
-	if err := seedTable(ctx, db, "dinosaurs", []string{"t-rex", "triceratops"}); err != nil {
+	if err := seedTable(ctx, db, "dinosaurs", []string{
+		"Tyrannosaurus Rex", "Triceratops", "Velociraptor", "Brachiosaurus",
+		"Stegosaurus", "Allosaurus", "Pteranodon", "Ankylosaurus",
+		"Spinosaurus", "Diplodocus", "Parasaurolophus", "Carnotaurus",
+		"Pachycephalosaurus", "Therizinosaurus", "Mosasaurus",
+	}); err != nil {
 		return nil, err
 	}
-	if err := seedTable(ctx, db, "cars", []string{"sedan", "truck"}); err != nil {
+	if err := seedTable(ctx, db, "cars", []string{
+		"Tesla Model 3", "Toyota Camry", "Ford F-150", "Honda Civic",
+		"BMW X5", "Mercedes C-Class", "Audi A4", "Chevrolet Silverado",
+		"Nissan Altima", "Mazda CX-5", "Subaru Outback", "Volkswagen Golf",
+		"Jeep Wrangler", "Hyundai Sonata", "Porsche 911",
+	}); err != nil {
 		return nil, err
 	}
 	return &Store{db: db}, nil
@@ -1296,14 +1442,26 @@ func seedMovies(ctx context.Context, db *sql.DB) error {
 		rating   float64
 		director string
 	}{
-		{"The Matrix", 1999, "Sci-Fi", 8.7, "Lana Wachowski"},
+		{"The Matrix", 1999, "Sci-Fi", 8.7, "The Wachowskis"},
 		{"Inception", 2010, "Sci-Fi", 8.8, "Christopher Nolan"},
-		{"The Godfather", 1972, "Crime", 9.2, "Francis Ford Coppola"},
-		{"Pulp Fiction", 1994, "Crime", 8.9, "Quentin Tarantino"},
-		{"Interstellar", 2014, "Sci-Fi", 8.6, "Christopher Nolan"},
+		{"The Shawshank Redemption", 1994, "Drama", 9.3, "Frank Darabont"},
 		{"The Dark Knight", 2008, "Action", 9.0, "Christopher Nolan"},
+		{"Pulp Fiction", 1994, "Crime", 8.9, "Quentin Tarantino"},
 		{"Forrest Gump", 1994, "Drama", 8.8, "Robert Zemeckis"},
+		{"The Godfather", 1972, "Crime", 9.2, "Francis Ford Coppola"},
+		{"Interstellar", 2014, "Sci-Fi", 8.6, "Christopher Nolan"},
 		{"Fight Club", 1999, "Drama", 8.8, "David Fincher"},
+		{"The Lord of the Rings: The Fellowship", 2001, "Fantasy", 8.8, "Peter Jackson"},
+		{"Parasite", 2019, "Thriller", 8.5, "Bong Joon-ho"},
+		{"Goodfellas", 1990, "Crime", 8.7, "Martin Scorsese"},
+		{"The Silence of the Lambs", 1991, "Thriller", 8.6, "Jonathan Demme"},
+		{"Schindler's List", 1993, "Drama", 9.0, "Steven Spielberg"},
+		{"Avengers: Endgame", 2019, "Action", 8.4, "Russo Brothers"},
+		{"The Green Mile", 1999, "Drama", 8.6, "Frank Darabont"},
+		{"Gladiator", 2000, "Action", 8.5, "Ridley Scott"},
+		{"The Departed", 2006, "Crime", 8.5, "Martin Scorsese"},
+		{"Whiplash", 2014, "Drama", 8.5, "Damien Chazelle"},
+		{"The Prestige", 2006, "Thriller", 8.5, "Christopher Nolan"},
 	}
 	for _, m := range movies {
 		if _, err := db.ExecContext(ctx, "INSERT INTO movies (title, year, genre, rating, director) VALUES (?, ?, ?, ?, ?)", m.title, m.year, m.genre, m.rating, m.director); err != nil {
@@ -2273,3 +2431,242 @@ const openRPCSpec = `{
     }
   ]
 }`
+
+// Enrichment functions to convert simple DB records to nested API responses
+
+func enrichPet(simple Pet) EnhancedPet {
+	// Parse breed from name if in format "Name (Breed)"
+	name := simple.Name
+	breed := "Mixed"
+	if idx := strings.Index(name, "("); idx > 0 {
+		breed = strings.TrimSpace(strings.Trim(name[idx:], "()"))
+		name = strings.TrimSpace(name[:idx])
+	}
+	
+	id, _ := strconv.Atoi(simple.ID)
+	
+	// Sample data based on ID
+	owners := []PetOwner{
+		{Name: "John Smith", Email: "john@example.com", Phone: "+1-555-0101", Address: "123 Main St, Springfield"},
+		{Name: "Sarah Johnson", Email: "sarah@example.com", Phone: "+1-555-0102", Address: "456 Oak Ave, Portland"},
+		{Name: "Mike Davis", Email: "mike@example.com", Phone: "+1-555-0103", Address: "789 Pine Rd, Seattle"},
+	}
+	
+	ages := []int{3, 2, 5, 1, 4, 6, 2, 3, 1, 4, 5, 2, 3, 4, 6}
+	weights := []float64{32.5, 4.2, 38.0, 22.0, 5.5, 12.0, 8.5, 28.0, 3.8, 25.0, 6.0, 15.0, 30.0, 4.5, 40.0}
+	colors := []string{"Golden", "Cream", "Black and Tan", "Chocolate", "White", "Tri-color", "Apricot", "Gray", "Orange", "Brindle"}
+	
+	ownerIdx := (id - 1) % len(owners)
+	ageIdx := (id - 1) % len(ages)
+	weightIdx := (id - 1) % len(weights)
+	colorIdx := (id - 1) % len(colors)
+	
+	medicalRecords := []MedicalRecord{
+		{Date: "2025-01-15", Condition: "Annual Checkup", Treatment: "Vaccinations", Veterinarian: "Dr. Wilson"},
+		{Date: "2024-08-20", Condition: "Ear Infection", Treatment: "Antibiotics", Veterinarian: "Dr. Chen"},
+	}
+	
+	tags := []string{"friendly", "energetic", "trained", "indoor", "outdoor", "playful"}
+	petTags := []string{tags[id%len(tags)], tags[(id+1)%len(tags)]}
+	
+	return EnhancedPet{
+		ID:      simple.ID,
+		Name:    name,
+		Breed:   breed,
+		Age:     ages[ageIdx],
+		Weight:  weights[weightIdx],
+		Color:   colors[colorIdx],
+		Owner:   owners[ownerIdx],
+		Medical: medicalRecords[:(id%2)+1],
+		Tags:    petTags,
+	}
+}
+
+func enrichDinosaur(simple Dinosaur) EnhancedDinosaur {
+	id, _ := strconv.Atoi(simple.ID)
+	
+	dinoData := map[string]struct {
+		species string
+		period  string
+		diet    string
+		length  float64
+		weight  float64
+		habitat string
+		disc    Discovery
+		features []string
+		danger  int
+	}{
+		"Tyrannosaurus Rex": {"T. rex", "Late Cretaceous", "Carnivore", 12.3, 8.4, "Forests and plains of North America", Discovery{1902, "Montana, USA", "Barnum Brown"}, []string{"Massive jaw", "Tiny arms", "Bipedal", "Apex predator"}, 10},
+		"Triceratops": {"T. horridus", "Late Cretaceous", "Herbivore", 9.0, 6.0, "Woodlands of North America", Discovery{1889, "Colorado, USA", "Othniel Charles Marsh"}, []string{"Three horns", "Bony frill", "Quadrupedal"}, 6},
+		"Velociraptor": {"V. mongoliensis", "Late Cretaceous", "Carnivore", 2.0, 0.015, "Desert regions of Mongolia", Discovery{1924, "Gobi Desert, Mongolia", "Peter Kaisen"}, []string{"Feathered", "Sickle claw", "Pack hunter"}, 7},
+		"Brachiosaurus": {"B. altithorax", "Late Jurassic", "Herbivore", 25.0, 56.0, "Floodplains of North America", Discovery{1903, "Colorado, USA", "Elmer Riggs"}, []string{"Long neck", "Massive size", "Gentle giant"}, 2},
+		"Stegosaurus": {"S. stenops", "Late Jurassic", "Herbivore", 9.0, 5.0, "Forests of North America", Discovery{1877, "Colorado, USA", "Othniel Charles Marsh"}, []string{"Plates on back", "Spiked tail", "Defensive"}, 5},
+	}
+	
+	// Default for dinosaurs not in map
+	data, ok := dinoData[simple.Name]
+	if !ok {
+		data = struct {
+			species string
+			period  string
+			diet    string
+			length  float64
+			weight  float64
+			habitat string
+			disc    Discovery
+			features []string
+			danger  int
+		}{
+			species: "Unknown species",
+			period: "Mesozoic Era",
+			diet: []string{"Carnivore", "Herbivore"}[id%2],
+			length: 5.0 + float64(id)*2.0,
+			weight: 1.0 + float64(id)*3.0,
+			habitat: "Various regions",
+			disc: Discovery{1900 + id*5, "Global", "Various paleontologists"},
+			features: []string{"Ancient reptile", "Extinct"},
+			danger: id % 10,
+		}
+	}
+	
+	return EnhancedDinosaur{
+		ID:          simple.ID,
+		Name:        simple.Name,
+		Species:     data.species,
+		Period:      data.period,
+		Diet:        data.diet,
+		Length:      data.length,
+		Weight:      data.weight,
+		Habitat:     data.habitat,
+		Discovered:  data.disc,
+		Features:    data.features,
+		DangerLevel: data.danger,
+	}
+}
+
+func enrichCar(simple Car) EnhancedCar {
+	id, _ := strconv.Atoi(simple.ID)
+	
+	// Parse make/model from name
+	name := simple.Name
+	make, model := "Unknown", name
+	if strings.Contains(name, " ") {
+		parts := strings.SplitN(name, " ", 2)
+		make, model = parts[0], parts[1]
+	}
+	
+	years := []int{2023, 2022, 2024, 2021, 2023, 2022, 2024, 2023, 2021, 2024}
+	colors := []string{"Pearl White", "Midnight Black", "Oxford White", "Rallye Red", "Mineral White", "Silver", "Blue", "Gray", "Green", "Red"}
+	mileages := []int{15000, 28000, 8500, 42000, 12000, 35000, 5000, 18000, 50000, 22000}
+	prices := []float64{45990, 28500, 52000, 22000, 68500, 38000, 75000, 42000, 18000, 55000}
+	
+	yearIdx := (id - 1) % len(years)
+	colorIdx := (id - 1) % len(colors)
+	mileageIdx := (id - 1) % len(mileages)
+	priceIdx := (id - 1) % len(prices)
+	
+	owners := []CarOwner{
+		{Name: "Alex Turner", LicenseNo: "D1234567"},
+		{Name: "Linda Martinez", LicenseNo: "C9876543"},
+		{Name: "James Cooper", LicenseNo: "T5551234"},
+	}
+	
+	engines := []Engine{
+		{Type: "Electric", Displacement: 0.0, Horsepower: 283, FuelType: "Electric"},
+		{Type: "I4", Displacement: 2.5, Horsepower: 203, FuelType: "Gasoline"},
+		{Type: "V6", Displacement: 3.5, Horsepower: 400, FuelType: "Gasoline"},
+		{Type: "I6 Turbo", Displacement: 3.0, Horsepower: 335, FuelType: "Gasoline"},
+	}
+	
+	features := []string{"Autopilot", "Adaptive Cruise Control", "Lane Departure Warning", "Heated Seats", "Sunroof", "Backup Camera", "LED Headlights", "Apple CarPlay"}
+	
+	maintenance := []MaintenanceRecord{
+		{Date: "2025-06-15", Type: "Service", Description: "Tire rotation and brake inspection", Cost: 150.00},
+		{Date: "2025-03-20", Type: "Oil Change", Description: "Synthetic oil change", Cost: 75.00},
+	}
+	
+	return EnhancedCar{
+		ID:          simple.ID,
+		Make:        make,
+		Model:       model,
+		Year:        years[yearIdx],
+		Color:       colors[colorIdx],
+		Mileage:     mileages[mileageIdx],
+		Price:       prices[priceIdx],
+		Engine:      engines[id%len(engines)],
+		Features:    features[:(id%4)+2],
+		Owner:       owners[(id-1)%len(owners)],
+		Maintenance: maintenance[:(id%2)+1],
+	}
+}
+
+func enrichPlant(simple Plant) EnhancedPlant {
+	id, _ := strconv.Atoi(simple.ID)
+	
+	plantData := map[string]struct {
+		scientific string
+		family     string
+		origin     string
+		ptype      string
+		care       CareInstructions
+		growth     GrowthInfo
+		uses       []string
+		toxicity   ToxicityInfo
+	}{
+		"Monstera Deliciosa": {
+			"Monstera deliciosa", "Araceae", "Central America", "Tropical Vine",
+			CareInstructions{"Once per week", "Bright indirect light", "Well-draining potting mix", "18-27°C", "60-80%"},
+			GrowthInfo{300, "Fast", "Many years", "Spring (rare indoors)"},
+			[]string{"Ornamental", "Air purification", "Interior decoration"},
+			ToxicityInfo{true, true, "Mouth irritation, drooling, vomiting"},
+		},
+		"Snake Plant": {
+			"Sansevieria trifasciata", "Asparagaceae", "West Africa", "Succulent",
+			CareInstructions{"Every 2-3 weeks", "Low to bright indirect", "Cactus mix", "15-29°C", "30-50%"},
+			GrowthInfo{120, "Slow", "5-10 years", "Spring (rare)"},
+			[]string{"Air purification", "Low-light areas", "Beginner-friendly"},
+			ToxicityInfo{true, false, "Nausea and vomiting (if large amounts)"},
+		},
+		"Aloe Vera": {
+			"Aloe barbadensis miller", "Asphodelaceae", "Arabian Peninsula", "Succulent",
+			CareInstructions{"Every 3 weeks", "Bright indirect to direct", "Sandy soil", "13-27°C", "10-30%"},
+			GrowthInfo{60, "Slow to moderate", "12+ years", "Spring/Summer"},
+			[]string{"Medicinal gel", "Sunburn relief", "Skin care", "Ornamental"},
+			ToxicityInfo{true, false, "Vomiting, diarrhea (pets)"},
+		},
+	}
+	
+	// Default for plants not in map
+	data, ok := plantData[simple.Name]
+	if !ok {
+		data = struct {
+			scientific string
+			family     string
+			origin     string
+			ptype      string
+			care       CareInstructions
+			growth     GrowthInfo
+			uses       []string
+			toxicity   ToxicityInfo
+		}{
+			simple.Name + " sp.", "Plantae", "Global", "Houseplant",
+			CareInstructions{"Weekly", "Moderate light", "Standard soil", "15-25°C", "40-60%"},
+			GrowthInfo{100 + float64(id*20), "Moderate", "Several years", "Seasonal"},
+			[]string{"Ornamental", "Air quality"},
+			ToxicityInfo{id%2 == 0, id%3 == 0, "Mild irritation possible"},
+		}
+	}
+	
+	return EnhancedPlant{
+		ID:             simple.ID,
+		CommonName:     simple.Name,
+		ScientificName: data.scientific,
+		Family:         data.family,
+		Origin:         data.origin,
+		Type:           data.ptype,
+		Care:           data.care,
+		Growth:         data.growth,
+		Uses:           data.uses,
+		Toxicity:       data.toxicity,
+	}
+}

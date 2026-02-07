@@ -32,3 +32,20 @@ Thumbs.db
 # Logs
 *.log
 /tmp/
+# Build artifacts
+mockingbird
+*.exe
+
+# Backups and temp files
+*.backup
+*.bak
+*.bak2
+fix_mux_usage.sh
+update_handlers.sed
+
+# Test output
+*.log
+
+# IDE
+.vscode/
+.idea/
