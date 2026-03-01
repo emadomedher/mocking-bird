@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"encoding/xml"
+	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -26,6 +27,9 @@ import (
 
 	_ "modernc.org/sqlite"
 )
+
+// Version is set at build time via -ldflags.
+var version = "dev"
 
 // Basic types for DB storage
 type Pet struct {
@@ -91,17 +95,17 @@ type Discovery struct {
 }
 
 type EnhancedDinosaur struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Species     string   `json:"species"`
-	Period      string   `json:"period"`
-	Diet        string   `json:"diet"`
-	Length      float64  `json:"length_meters"`
-	Weight      float64  `json:"weight_tons"`
-	Habitat     string   `json:"habitat"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Species     string    `json:"species"`
+	Period      string    `json:"period"`
+	Diet        string    `json:"diet"`
+	Length      float64   `json:"length_meters"`
+	Weight      float64   `json:"weight_tons"`
+	Habitat     string    `json:"habitat"`
 	Discovered  Discovery `json:"discovery"`
-	Features    []string `json:"features"`
-	DangerLevel int      `json:"danger_level"`
+	Features    []string  `json:"features"`
+	DangerLevel int       `json:"danger_level"`
 }
 
 type Engine struct {
@@ -176,6 +180,14 @@ type Server struct {
 }
 
 func main() {
+	showVersion := flag.Bool("version", false, "Show version and exit")
+	flag.Parse()
+
+	if *showVersion {
+		fmt.Printf("mockingbird %s\n", version)
+		os.Exit(0)
+	}
+
 	store, err := NewStore()
 	if err != nil {
 		log.Fatalf("db init failed: %v", err)
@@ -2442,33 +2454,33 @@ func enrichPet(simple Pet) EnhancedPet {
 		breed = strings.TrimSpace(strings.Trim(name[idx:], "()"))
 		name = strings.TrimSpace(name[:idx])
 	}
-	
+
 	id, _ := strconv.Atoi(simple.ID)
-	
+
 	// Sample data based on ID
 	owners := []PetOwner{
 		{Name: "John Smith", Email: "john@example.com", Phone: "+1-555-0101", Address: "123 Main St, Springfield"},
 		{Name: "Sarah Johnson", Email: "sarah@example.com", Phone: "+1-555-0102", Address: "456 Oak Ave, Portland"},
 		{Name: "Mike Davis", Email: "mike@example.com", Phone: "+1-555-0103", Address: "789 Pine Rd, Seattle"},
 	}
-	
+
 	ages := []int{3, 2, 5, 1, 4, 6, 2, 3, 1, 4, 5, 2, 3, 4, 6}
 	weights := []float64{32.5, 4.2, 38.0, 22.0, 5.5, 12.0, 8.5, 28.0, 3.8, 25.0, 6.0, 15.0, 30.0, 4.5, 40.0}
 	colors := []string{"Golden", "Cream", "Black and Tan", "Chocolate", "White", "Tri-color", "Apricot", "Gray", "Orange", "Brindle"}
-	
+
 	ownerIdx := (id - 1) % len(owners)
 	ageIdx := (id - 1) % len(ages)
 	weightIdx := (id - 1) % len(weights)
 	colorIdx := (id - 1) % len(colors)
-	
+
 	medicalRecords := []MedicalRecord{
 		{Date: "2025-01-15", Condition: "Annual Checkup", Treatment: "Vaccinations", Veterinarian: "Dr. Wilson"},
 		{Date: "2024-08-20", Condition: "Ear Infection", Treatment: "Antibiotics", Veterinarian: "Dr. Chen"},
 	}
-	
+
 	tags := []string{"friendly", "energetic", "trained", "indoor", "outdoor", "playful"}
 	petTags := []string{tags[id%len(tags)], tags[(id+1)%len(tags)]}
-	
+
 	return EnhancedPet{
 		ID:      simple.ID,
 		Name:    name,
@@ -2484,51 +2496,51 @@ func enrichPet(simple Pet) EnhancedPet {
 
 func enrichDinosaur(simple Dinosaur) EnhancedDinosaur {
 	id, _ := strconv.Atoi(simple.ID)
-	
+
 	dinoData := map[string]struct {
-		species string
-		period  string
-		diet    string
-		length  float64
-		weight  float64
-		habitat string
-		disc    Discovery
+		species  string
+		period   string
+		diet     string
+		length   float64
+		weight   float64
+		habitat  string
+		disc     Discovery
 		features []string
-		danger  int
+		danger   int
 	}{
 		"Tyrannosaurus Rex": {"T. rex", "Late Cretaceous", "Carnivore", 12.3, 8.4, "Forests and plains of North America", Discovery{1902, "Montana, USA", "Barnum Brown"}, []string{"Massive jaw", "Tiny arms", "Bipedal", "Apex predator"}, 10},
-		"Triceratops": {"T. horridus", "Late Cretaceous", "Herbivore", 9.0, 6.0, "Woodlands of North America", Discovery{1889, "Colorado, USA", "Othniel Charles Marsh"}, []string{"Three horns", "Bony frill", "Quadrupedal"}, 6},
-		"Velociraptor": {"V. mongoliensis", "Late Cretaceous", "Carnivore", 2.0, 0.015, "Desert regions of Mongolia", Discovery{1924, "Gobi Desert, Mongolia", "Peter Kaisen"}, []string{"Feathered", "Sickle claw", "Pack hunter"}, 7},
-		"Brachiosaurus": {"B. altithorax", "Late Jurassic", "Herbivore", 25.0, 56.0, "Floodplains of North America", Discovery{1903, "Colorado, USA", "Elmer Riggs"}, []string{"Long neck", "Massive size", "Gentle giant"}, 2},
-		"Stegosaurus": {"S. stenops", "Late Jurassic", "Herbivore", 9.0, 5.0, "Forests of North America", Discovery{1877, "Colorado, USA", "Othniel Charles Marsh"}, []string{"Plates on back", "Spiked tail", "Defensive"}, 5},
+		"Triceratops":       {"T. horridus", "Late Cretaceous", "Herbivore", 9.0, 6.0, "Woodlands of North America", Discovery{1889, "Colorado, USA", "Othniel Charles Marsh"}, []string{"Three horns", "Bony frill", "Quadrupedal"}, 6},
+		"Velociraptor":      {"V. mongoliensis", "Late Cretaceous", "Carnivore", 2.0, 0.015, "Desert regions of Mongolia", Discovery{1924, "Gobi Desert, Mongolia", "Peter Kaisen"}, []string{"Feathered", "Sickle claw", "Pack hunter"}, 7},
+		"Brachiosaurus":     {"B. altithorax", "Late Jurassic", "Herbivore", 25.0, 56.0, "Floodplains of North America", Discovery{1903, "Colorado, USA", "Elmer Riggs"}, []string{"Long neck", "Massive size", "Gentle giant"}, 2},
+		"Stegosaurus":       {"S. stenops", "Late Jurassic", "Herbivore", 9.0, 5.0, "Forests of North America", Discovery{1877, "Colorado, USA", "Othniel Charles Marsh"}, []string{"Plates on back", "Spiked tail", "Defensive"}, 5},
 	}
-	
+
 	// Default for dinosaurs not in map
 	data, ok := dinoData[simple.Name]
 	if !ok {
 		data = struct {
-			species string
-			period  string
-			diet    string
-			length  float64
-			weight  float64
-			habitat string
-			disc    Discovery
+			species  string
+			period   string
+			diet     string
+			length   float64
+			weight   float64
+			habitat  string
+			disc     Discovery
 			features []string
-			danger  int
+			danger   int
 		}{
-			species: "Unknown species",
-			period: "Mesozoic Era",
-			diet: []string{"Carnivore", "Herbivore"}[id%2],
-			length: 5.0 + float64(id)*2.0,
-			weight: 1.0 + float64(id)*3.0,
-			habitat: "Various regions",
-			disc: Discovery{1900 + id*5, "Global", "Various paleontologists"},
+			species:  "Unknown species",
+			period:   "Mesozoic Era",
+			diet:     []string{"Carnivore", "Herbivore"}[id%2],
+			length:   5.0 + float64(id)*2.0,
+			weight:   1.0 + float64(id)*3.0,
+			habitat:  "Various regions",
+			disc:     Discovery{1900 + id*5, "Global", "Various paleontologists"},
 			features: []string{"Ancient reptile", "Extinct"},
-			danger: id % 10,
+			danger:   id % 10,
 		}
 	}
-	
+
 	return EnhancedDinosaur{
 		ID:          simple.ID,
 		Name:        simple.Name,
@@ -2546,7 +2558,7 @@ func enrichDinosaur(simple Dinosaur) EnhancedDinosaur {
 
 func enrichCar(simple Car) EnhancedCar {
 	id, _ := strconv.Atoi(simple.ID)
-	
+
 	// Parse make/model from name
 	name := simple.Name
 	make, model := "Unknown", name
@@ -2554,37 +2566,37 @@ func enrichCar(simple Car) EnhancedCar {
 		parts := strings.SplitN(name, " ", 2)
 		make, model = parts[0], parts[1]
 	}
-	
+
 	years := []int{2023, 2022, 2024, 2021, 2023, 2022, 2024, 2023, 2021, 2024}
 	colors := []string{"Pearl White", "Midnight Black", "Oxford White", "Rallye Red", "Mineral White", "Silver", "Blue", "Gray", "Green", "Red"}
 	mileages := []int{15000, 28000, 8500, 42000, 12000, 35000, 5000, 18000, 50000, 22000}
 	prices := []float64{45990, 28500, 52000, 22000, 68500, 38000, 75000, 42000, 18000, 55000}
-	
+
 	yearIdx := (id - 1) % len(years)
 	colorIdx := (id - 1) % len(colors)
 	mileageIdx := (id - 1) % len(mileages)
 	priceIdx := (id - 1) % len(prices)
-	
+
 	owners := []CarOwner{
 		{Name: "Alex Turner", LicenseNo: "D1234567"},
 		{Name: "Linda Martinez", LicenseNo: "C9876543"},
 		{Name: "James Cooper", LicenseNo: "T5551234"},
 	}
-	
+
 	engines := []Engine{
 		{Type: "Electric", Displacement: 0.0, Horsepower: 283, FuelType: "Electric"},
 		{Type: "I4", Displacement: 2.5, Horsepower: 203, FuelType: "Gasoline"},
 		{Type: "V6", Displacement: 3.5, Horsepower: 400, FuelType: "Gasoline"},
 		{Type: "I6 Turbo", Displacement: 3.0, Horsepower: 335, FuelType: "Gasoline"},
 	}
-	
+
 	features := []string{"Autopilot", "Adaptive Cruise Control", "Lane Departure Warning", "Heated Seats", "Sunroof", "Backup Camera", "LED Headlights", "Apple CarPlay"}
-	
+
 	maintenance := []MaintenanceRecord{
 		{Date: "2025-06-15", Type: "Service", Description: "Tire rotation and brake inspection", Cost: 150.00},
 		{Date: "2025-03-20", Type: "Oil Change", Description: "Synthetic oil change", Cost: 75.00},
 	}
-	
+
 	return EnhancedCar{
 		ID:          simple.ID,
 		Make:        make,
@@ -2602,7 +2614,7 @@ func enrichCar(simple Car) EnhancedCar {
 
 func enrichPlant(simple Plant) EnhancedPlant {
 	id, _ := strconv.Atoi(simple.ID)
-	
+
 	plantData := map[string]struct {
 		scientific string
 		family     string
@@ -2635,7 +2647,7 @@ func enrichPlant(simple Plant) EnhancedPlant {
 			ToxicityInfo{true, false, "Vomiting, diarrhea (pets)"},
 		},
 	}
-	
+
 	// Default for plants not in map
 	data, ok := plantData[simple.Name]
 	if !ok {
@@ -2656,7 +2668,7 @@ func enrichPlant(simple Plant) EnhancedPlant {
 			ToxicityInfo{id%2 == 0, id%3 == 0, "Mild irritation possible"},
 		}
 	}
-	
+
 	return EnhancedPlant{
 		ID:             simple.ID,
 		CommonName:     simple.Name,

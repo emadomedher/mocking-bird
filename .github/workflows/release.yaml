@@ -1,0 +1,149 @@
+name: Release
+
+on:
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - 'assets/**'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build & Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+
+      - name: Run tests
+        run: go test -v -count=1 ./...
+
+      - name: Determine next version
+        id: version
+        run: |
+          # Get the latest tag, default to v0.1.2 if none exists
+          LATEST=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.1.2")
+          echo "Latest tag: $LATEST"
+
+          # Strip the 'v' prefix and split into major.minor.patch
+          SEMVER="${LATEST#v}"
+          MAJOR=$(echo "$SEMVER" | cut -d. -f1)
+          MINOR=$(echo "$SEMVER" | cut -d. -f2)
+          PATCH=$(echo "$SEMVER" | cut -d. -f3)
+
+          # Increment patch
+          PATCH=$((PATCH + 1))
+          NEXT="v${MAJOR}.${MINOR}.${PATCH}"
+
+          echo "Next version: $NEXT"
+          echo "version=$NEXT" >> $GITHUB_OUTPUT
+          echo "semver=${MAJOR}.${MINOR}.${PATCH}" >> $GITHUB_OUTPUT
+
+      - name: Cross-compile binaries
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          LDFLAGS="-s -w -X main.version=${VERSION}"
+          TARGETS=(
+            "linux/amd64"
+            "linux/arm64"
+            "darwin/amd64"
+            "darwin/arm64"
+            "windows/amd64"
+            "windows/arm64"
+          )
+
+          mkdir -p dist
+
+          for target in "${TARGETS[@]}"; do
+            GOOS="${target%/*}"
+            GOARCH="${target#*/}"
+            OUTPUT="dist/mockingbird-${GOOS}-${GOARCH}"
+            if [ "$GOOS" = "windows" ]; then
+              OUTPUT="${OUTPUT}.exe"
+            fi
+
+            echo "Building ${GOOS}/${GOARCH}..."
+            CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build \
+              -ldflags "$LDFLAGS" \
+              -o "$OUTPUT" .
+
+            echo "  -> $OUTPUT ($(du -h "$OUTPUT" | cut -f1))"
+          done
+
+          # Copy clothes.proto into dist (needed at runtime for gRPC)
+          cp clothes.proto dist/
+
+          ls -lh dist/
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Create tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          # Build release notes from commits since last tag
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            COMMITS=$(git log --oneline "${PREV_TAG}..HEAD^" | head -20)
+          else
+            COMMITS=$(git log --oneline HEAD | head -20)
+          fi
+
+          NOTES="## What's Changed
+
+          ${COMMITS}
+
+          ## Installation
+
+          Download the binary for your platform, make it executable, and run:
+
+          \`\`\`bash
+          # Linux (amd64)
+          curl -fsSL https://github.com/emadomedher/mocking-bird/releases/download/${VERSION}/mockingbird-linux-amd64 -o mockingbird
+          chmod +x mockingbird
+
+          # macOS (Apple Silicon)
+          curl -fsSL https://github.com/emadomedher/mocking-bird/releases/download/${VERSION}/mockingbird-darwin-arm64 -o mockingbird
+          chmod +x mockingbird
+
+          # Also download clothes.proto (needed for gRPC mock)
+          curl -fsSL https://github.com/emadomedher/mocking-bird/releases/download/${VERSION}/clothes.proto -o clothes.proto
+
+          ./mockingbird
+          \`\`\`
+
+          ## Checksums
+
+          See \`checksums.txt\` for SHA-256 checksums of all binaries."
+
+          gh release create "$VERSION" \
+            --title "Mocking Bird $VERSION" \
+            --notes "$NOTES" \
+            dist/*
