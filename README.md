@@ -369,12 +369,12 @@ Each API comes pre-seeded with sample data:
 
 | API | Seed Data |
 |-----|-----------|
-| Pets | 3 pets (pet-1, pet-2, pet-3) |
-| Dinosaurs | 2 dinosaurs (t-rex, triceratops) |
-| Plants | 2 plants (fern, cactus) |
-| Cars | 2 cars (sedan, truck) |
-| Movies | 8 movies (Matrix, Inception, etc.) |
-| Clothes | 3 items per category (12 total) |
+| Pets | 15 pets (Max, Whiskers, Rocky, Bella, Luna, ...) |
+| Dinosaurs | 15 dinosaurs (T-Rex, Triceratops, Velociraptor, ...) |
+| Plants | 15 plants (Monstera, Snake Plant, Fiddle Leaf Fig, ...) |
+| Cars | 15 cars (Tesla Model 3, Toyota Camry, Ford F-150, ...) |
+| Movies | 20 movies (The Matrix, Inception, The Godfather, ...) |
+| Clothes | 3 items per category, 4 categories (12 total) |
 
 Data persists in memory for the lifetime of the server process.
 
